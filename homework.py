@@ -23,6 +23,7 @@ class Calculator:
         self.limit = limit
 
     def add_record(self, record: Record) -> None:
+        """Добавление записи."""
         self.records.append(record)
 
     def get_today_stats(self) -> int:
@@ -35,9 +36,11 @@ class Calculator:
 
     def get_week_stats(self) -> int:
         week_amount: int = 0
+        start_week = dt.date.today()
+        end_week = start_week - dt.timedelta(days=6)
         # Стоит ли сокращать до двух строк в цикл for c тернарным оператором?
         for record in self.records:
-            if dt.date.today() - dt.timedelta(days=7) <= record.date:
+            if start_week >= record.date >= end_week:
                 week_amount += record.amount
         return week_amount
 
@@ -50,18 +53,18 @@ class CaloriesCalculator(Calculator):
     def get_calories_remained(self) -> str:
         if(self.difference() > 0):
             return ('Сегодня можно съесть что-нибудь ещё, но с общей '
-                    f'калорийностью не более {self.limit} кКал')
+                    f'калорийностью не более {self.difference()} кКал')
         else:
             return 'Хватит есть!'
 
 
 class CashCalculator(Calculator):
-    USD_RATE: float = 30.0
-    EUR_RATE: float = 35.0
+    USD_RATE: float = 60.0
+    EURO_RATE: float = 70.0
 
     A_C: Dict = {
         'usd': ['USD', USD_RATE],
-        'eur': ['Euro', EUR_RATE],
+        'eur': ['Euro', EURO_RATE],
         'rub': ['руб', 1]
     }
 
@@ -71,8 +74,11 @@ class CashCalculator(Calculator):
         else:
             return 'Нет такой валюты'
 
-        balance: int = ((self.limit - self.get_today_stats())
-                        / self.A_C[currency][1])
+        balance: int = (round(((self.limit - self.get_today_stats())
+                        / self.A_C[currency][1]), 2))
+
+        if balance < 0:
+            balance = -balance
 
         if self.difference() > 0:
             return f'На сегодня осталось {balance} {currency_name}'
