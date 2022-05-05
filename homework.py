@@ -1,69 +1,99 @@
 import datetime as dt
-
-
-class Calculator:
-    def __init__(self, limit):
-        self.records = []
-        self.limit = limit
-
-    def add_record(self, record):
-        self.records.append(record)
-
-    def get_today_stats(self):
-        today = dt.date.today()
-        today_stats = sum(record.amount for record in self.records
-                          if record.date == today)
-        return today_stats
-
-    def get_week_stats(self):
-        today = dt.date.today()
-        week_ago = today - dt.timedelta(7)
-        week_stats = sum(record.amount for record in self.records
-                         if week_ago <= record.date <= today)
-        return week_stats
-
-    def remained(self):
-        return self.limit - self.get_today_stats()
+from typing import Optional, List, Dict
 
 
 class Record:
-    def __init__(self, amount, comment, date=None):
+    def __init__(self, amount: int, comment: str,
+                 date: Optional[str] = None) -> None:
+        """Конструктор класса."""
         self.amount = amount
         self.comment = comment
+        self.DATE_FORMAT: str = '%d.%m.%Y'
         if date is not None:
-            self.date = dt.datetime.strptime(date, '%d.%m.%Y').date()
+            self.date = dt.datetime.strptime(date, self.DATE_FORMAT).date()
         else:
             self.date = dt.date.today()
 
 
+class Calculator:
+    # Стоит ли анторировать в конструкторе, перменные которые берутся
+    # из функции конструктора?
+    def __init__(self, limit: int) -> None:
+        self.records: List = []
+        self.limit = limit
+
+    def add_record(self, record: Record) -> None:
+        self.records.append(record)
+
+    def get_today_stats(self) -> int:
+        today_amount: int = 0
+        # Стоит ли сокращать до двух строк в цикл for c тернарным оператором?
+        for record in self.records:
+            if dt.date.today() == record.date:
+                today_amount += record.amount
+        return today_amount
+
+    def get_week_stats(self) -> int:
+        week_amount: int = 0
+        # Стоит ли сокращать до двух строк в цикл for c тернарным оператором?
+        for record in self.records:
+            if dt.date.today() - dt.timedelta(days=7) <= record.date:
+                week_amount += record.amount
+        return week_amount
+
+    def difference(self) -> int:
+        """Сравниваем дневную статистику с лимитом"""
+        return self.limit - self.get_today_stats()
+
+
 class CaloriesCalculator(Calculator):
-    def get_calories_remained(self):
-        calories_remained = self.remained()
-        if calories_remained <= 0:
+    def get_calories_remained(self) -> str:
+        if(self.difference() > 0):
+            return ('Сегодня можно съесть что-нибудь ещё, но с общей '
+                    f'калорийностью не более {self.limit} кКал')
+        else:
             return 'Хватит есть!'
-        return ('Сегодня можно съесть что-нибудь ещё, но с общей '
-                f'калорийностью не более {calories_remained} кКал')
 
 
 class CashCalculator(Calculator):
-    USD_RATE = 60.0
-    EURO_RATE = 70.0
-    RUB_RATE = 1.0
+    USD_RATE: float = 30.0
+    EUR_RATE: float = 35.0
 
-    def get_today_cash_remained(self, currency):
-        cash_remained = self.remained()
-        if cash_remained == 0:
+    A_C: Dict = {
+        'usd': ['USD', USD_RATE],
+        'eur': ['Euro', EUR_RATE],
+        'rub': ['руб', 1]
+    }
+
+    def get_today_cash_remained(self, currency: str) -> str:
+        if currency in self.A_C:
+            currency_name: str = self.A_C[currency][0]
+        else:
+            return 'Нет такой валюты'
+
+        balance: int = ((self.limit - self.get_today_stats())
+                        / self.A_C[currency][1])
+
+        if self.difference() > 0:
+            return f'На сегодня осталось {balance} {currency_name}'
+        if self.difference() == 0:
             return 'Денег нет, держись'
-        currencies = {
-            'eur': ('Euro', self.EURO_RATE),
-            'usd': ('USD', self.USD_RATE),
-            'rub': ('руб', self.RUB_RATE),
-        }
-        if currency not in currencies:
-            return 'No such currency.'
-        sign, rate = currencies.get(currency)
-        cash_remained = round(cash_remained / rate, 2)
-        if cash_remained > 0:
-            return f'На сегодня осталось {cash_remained} {sign}'
-        cash_remained = abs(cash_remained)
-        return f'Денег нет, держись: твой долг - {cash_remained} {sign}'
+        else:
+            return f'Денег нет, держись: твой долг - {balance} {currency_name}'
+
+
+if __name__ == "__main__":
+
+    cash_calculator = CashCalculator(0)
+    cash_calculator.add_record(Record(amount=84, comment='Йогурт.',
+                                      date='23.02.2019'))
+    cash_calculator.add_record(Record(amount=1140, comment='Баночка чипсов.'))
+    cash_calculator.add_record(Record(amount=145, comment='кофе'))
+    cash_calculator.add_record(Record(amount=300, comment='Серёге за обед'))
+    cash_calculator.add_record(Record(amount=3000,
+                                      comment='бар в Танин др',
+                                      date='07.10.2021'))
+
+    cash_calculator.get_today_stats()
+    cash_calculator.get_week_stats()
+    print(cash_calculator.get_today_cash_remained('eur'))
